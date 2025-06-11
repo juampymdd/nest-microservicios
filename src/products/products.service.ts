@@ -1,56 +1,95 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  OnModuleInit,
-} from '@nestjs/common';
-import { v4 as uuidv4 } from 'uuid';
+import { Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import { Product } from './entities/product.entity';
-import { PrismaClient } from 'generated/prisma';
+import { PrismaClient } from '@prisma/client';
+import { PaginationDto } from 'src/common';
 
 @Injectable()
 export class ProductsService extends PrismaClient implements OnModuleInit {
+
   private readonly logger = new Logger('ProductsService');
 
   onModuleInit() {
-    this.$connect()
-      .then(() => this.logger.log('Connected to the database'))
-      .catch((error) => this.logger.error('Database connection error:', error));
+    this.$connect();
+    this.logger.log('Database connected');
   }
 
   create(createProductDto: CreateProductDto) {
+    
     return this.product.create({
-      data: {
-        name: createProductDto.name,
-        price: createProductDto.price,
-      },
+      data: createProductDto
     });
+    
   }
 
-  findAll() {
-    // return this.products;
+  async findAll( paginationDto: PaginationDto ) {
+
+    const { page, limit } = paginationDto;
+
+    const totalPages = await this.product.count({ where: { available: true } });
+    const lastPage = Math.ceil( totalPages / limit );
+
+    return {
+      data: await this.product.findMany({
+        skip: ( page - 1 ) * limit,
+        take: limit,
+        where: {
+          available: true
+        }
+      }),
+      meta: {
+        total: totalPages,
+        page: page,
+        lastPage: lastPage,
+      }
+    }
   }
 
-  findOne(id: string) {
-    // return this.products.find((product) => product.id === id);
+  async findOne(id: number) {
+    const product =  await this.product.findFirst({
+      where:{ id, available: true }
+    });
+
+    if ( !product ) {
+      throw new NotFoundException(`Product with id #${ id } not found`);
+    }
+
+    return product;
+
   }
 
-  update(id: string, updateProductDto: UpdateProductDto) {
-    // const oldProduct = this.findOne(id);
-    // if (!oldProduct) {
-    //   return new NotFoundException('Product not found');
-    // }
-    // const { name, description, price } = updateProductDto;
-    // const updatedProduct = { ...oldProduct, name, description, price };
-    // this.products = this.products.map((product) =>
-    //   product.id === id ? updatedProduct : product,
-    // );
-    // return updatedProduct;
+  async update(id: number, updateProductDto: UpdateProductDto) {
+
+    const { id: __, ...data } = updateProductDto;
+
+
+    await this.findOne(id);
+    
+    return this.product.update({
+      where: { id },
+      data: data,
+    });
+
+
   }
 
-  remove(id: string) {
-    // return this.products.filter((product) => product.id !== id);
+  async remove(id: number) {
+
+    await this.findOne(id);
+    
+    // return this.product.delete({
+    //   where: { id }
+    // });
+
+    const product = await this.product.update({
+      where: { id },
+      data: {
+        available: false
+      }
+    });
+
+    return product;
+
+
   }
 }
