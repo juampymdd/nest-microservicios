@@ -1,11 +1,25 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  OnModuleInit,
+} from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { Product } from './entities/product.entity';
+import { PrismaClient } from 'generated/prisma';
 
 @Injectable()
-export class ProductsService {
+export class ProductsService extends PrismaClient implements OnModuleInit {
+  private readonly logger = new Logger('ProductsService');
+
+  onModuleInit() {
+    this.$connect()
+      .then(() => this.logger.log('Connected to the database'))
+      .catch((error) => this.logger.error('Database connection error:', error));
+  }
+
   private products: Product[] = [];
   create(createProductDto: CreateProductDto) {
     const { name, description, price } = createProductDto;

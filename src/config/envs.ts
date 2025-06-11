@@ -4,9 +4,11 @@ import * as Joi from 'joi';
 
 interface EnvConfig {
   PORT: number;
+  DATABASE_URL: string;
 }
 const envsSchema = Joi.object({
   PORT: Joi.number().required().default(3000),
+  DATABASE_URL: Joi.string().uri().required(),
 }).unknown(true);
 const { error, value: env } = envsSchema.validate(process.env);
 
@@ -16,4 +18,5 @@ if (error) {
 const envVars: EnvConfig = env;
 export const envs = {
   port: envVars.PORT,
+  databaseUrl: envVars.DATABASE_URL,
 };
