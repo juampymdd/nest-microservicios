@@ -1,14 +1,15 @@
 import {
+  BadRequestException,
   Injectable,
   Logger,
-  NotFoundException,
   OnModuleInit,
 } from '@nestjs/common';
-import { v4 as uuidv4 } from 'uuid';
+
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import { Product } from './entities/product.entity';
 import { PrismaClient } from 'generated/prisma';
+import { PaginationDto } from '../common/dto/pagination.dto';
+import { GetProductByIdDto } from './dto/get-product.dto';
 
 @Injectable()
 export class ProductsService extends PrismaClient implements OnModuleInit {
@@ -22,35 +23,94 @@ export class ProductsService extends PrismaClient implements OnModuleInit {
 
   create(createProductDto: CreateProductDto) {
     return this.product.create({
-      data: {
-        name: createProductDto.name,
-        price: createProductDto.price,
-      },
+      data: createProductDto,
     });
   }
 
-  findAll() {
-    // return this.products;
+  async findAll(paginationDto: PaginationDto) {
+    const { page = 1, limit = 10 } = paginationDto;
+
+    this.logger.log(`Fetching products - Page: ${page}, Limit: ${limit}`);
+
+    const totalPages = await this.product.count();
+    const lastPage = Math.ceil(totalPages / limit);
+    if (page < 1 || page > lastPage) {
+      this.logger.warn(
+        `Invalid page number: ${page}. Valid range is 1 to ${lastPage}.`,
+      );
+      throw new BadRequestException(
+        `Invalid page number: ${page}. Valid range is 1 to ${lastPage}.`,
+      );
+    }
+    this.logger.log(
+      `Total products: ${totalPages}, Total pages: ${Math.ceil(totalPages / limit)}`,
+    );
+
+    return {
+      data: await this.product.findMany({
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { id: 'asc' },
+      }),
+      meta: {
+        total: totalPages,
+        page,
+        limit,
+        lastPage,
+      },
+    };
+    // return this.products; // Uncomment if using in-memory products array
   }
 
-  findOne(id: string) {
-    // return this.products.find((product) => product.id === id);
+  async findOne(GetProductByIdDto) {
+    const { id } = GetProductByIdDto;
+    this.logger.log(`Fetching product with ID: ${id}`);
+    // existe el producto?
+    const product = await this.product.findUnique({
+      where: { id },
+    });
+    if (!product) {
+      this.logger.warn(`Product with ID ${id} not found`);
+      throw new BadRequestException(`Product with ID ${id} not found`);
+    }
+
+    return product;
   }
 
-  update(id: string, updateProductDto: UpdateProductDto) {
-    // const oldProduct = this.findOne(id);
-    // if (!oldProduct) {
-    //   return new NotFoundException('Product not found');
-    // }
-    // const { name, description, price } = updateProductDto;
-    // const updatedProduct = { ...oldProduct, name, description, price };
-    // this.products = this.products.map((product) =>
-    //   product.id === id ? updatedProduct : product,
-    // );
-    // return updatedProduct;
+  update(id: number, updateProductDto: UpdateProductDto) {
+    this.logger.log(`Updating product with ID: ${id}`);
+    // existe el producto?
+    const product = this.product.findUnique({
+      where: { id },
+    });
+
+    if (!product) {
+      this.logger.warn(`Product with ID ${id} not found`);
+      throw new BadRequestException(`Product with ID ${id} not found`);
+    }
+
+    // Exclude 'id' from update data
+    const { id: _id, ...updateData } = updateProductDto as any;
+    return this.product.update({
+      where: { id },
+      data: updateData,
+    });
   }
 
-  remove(id: string) {
-    // return this.products.filter((product) => product.id !== id);
+  remove(id: number) {
+    this.logger.log(`Removing product with ID: ${id}`);
+    // existe el producto?
+    const product = this.product.findUnique({
+      where: { id },
+    });
+
+    if (!product) {
+      this.logger.warn(`Product with ID ${id} not found`);
+      throw new BadRequestException(`Product with ID ${id} not found`);
+    }
+
+    return this.product.delete({
+      where: { id },
+    });
   }
 }
