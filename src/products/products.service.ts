@@ -20,38 +20,37 @@ export class ProductsService extends PrismaClient implements OnModuleInit {
       .catch((error) => this.logger.error('Database connection error:', error));
   }
 
-  private products: Product[] = [];
   create(createProductDto: CreateProductDto) {
-    const { name, description, price } = createProductDto;
-    const product = new Product(uuidv4(), name, description, price);
-    this.products.push(product);
-    return product;
+    return this.product.create({
+      data: {
+        name: createProductDto.name,
+        price: createProductDto.price,
+      },
+    });
   }
 
   findAll() {
-    return this.products;
+    // return this.products;
   }
 
   findOne(id: string) {
-    return this.products.find((product) => product.id === id);
+    // return this.products.find((product) => product.id === id);
   }
 
   update(id: string, updateProductDto: UpdateProductDto) {
-    const oldProduct = this.findOne(id);
-    if (!oldProduct) {
-      return new NotFoundException('Product not found');
-    }
-
-    const { name, description, price } = updateProductDto;
-    const updatedProduct = { ...oldProduct, name, description, price };
-    this.products = this.products.map((product) =>
-      product.id === id ? updatedProduct : product,
-    );
-
-    return updatedProduct;
+    // const oldProduct = this.findOne(id);
+    // if (!oldProduct) {
+    //   return new NotFoundException('Product not found');
+    // }
+    // const { name, description, price } = updateProductDto;
+    // const updatedProduct = { ...oldProduct, name, description, price };
+    // this.products = this.products.map((product) =>
+    //   product.id === id ? updatedProduct : product,
+    // );
+    // return updatedProduct;
   }
 
   remove(id: string) {
-    return this.products.filter((product) => product.id !== id);
+    // return this.products.filter((product) => product.id !== id);
   }
 }
